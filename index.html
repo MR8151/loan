@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Calculator</title>
+<style>
+  :root { --bg:#f4f6fb; --card:#fff; --text:#1c2333; --muted:#6b7385; --accent:#3563e9; --border:#dde2ee; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151d; --card:#1b2030; --text:#e8ebf4; --muted:#9097ab; --accent:#6b8cff; --border:#2c3350; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--text); padding:16px; }
+  main { max-width:720px; margin:24px auto; }
+  h1 { margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
+  input { width:100%; padding:10px; font-size:1rem; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); }
+  .results { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
+  .stat .v { font-size:1.5rem; font-weight:700; }
+  .stat.main .v { color:var(--accent); }
+  .stat .l { font-size:.8rem; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { padding:6px 8px; text-align:right; border-bottom:1px solid var(--border); }
+  th:first-child, td:first-child { text-align:left; }
+  .scroll { max-height:360px; overflow:auto; }
+  th { position:sticky; top:0; background:var(--card); }
+  .err { color:#d33; font-size:.9rem; min-height:1.2em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Loan Calculator</h1>
+  <div class="card">
+    <div class="grid">
+      <div><label for="amount">Loan amount ($)</label><input id="amount" type="number" min="0" step="any" value="250000"></div>
+      <div><label for="rate">Annual interest rate (%)</label><input id="rate" type="number" min="0" step="any" value="6.5"></div>
+      <div><label for="years">Term (years)</label><input id="years" type="number" min="0" step="any" value="30"></div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card results">
+    <div class="stat main"><div class="v" id="monthly">—</div><div class="l">Monthly payment</div></div>
+    <div class="stat"><div class="v" id="interest">—</div><div class="l">Total interest</div></div>
+    <div class="stat"><div class="v" id="total">—</div><div class="l">Total paid</div></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Amortization schedule</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Month</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString(undefined, { style:'currency', currency:'USD' });
+
+function calc() {
+  const P = parseFloat($('amount').value);
+  const r = parseFloat($('rate').value) / 100 / 12;
+  const n = Math.round(parseFloat($('years').value) * 12);
+  const rows = $('rows');
+  rows.innerHTML = '';
+
+  if (!(P > 0) || !(r >= 0) || !(n > 0)) {
+    $('err').textContent = 'Enter a positive amount and term, and a non-negative rate.';
+    ['monthly','interest','total'].forEach(id => $(id).textContent = '—');
+    return;
+  }
+  $('err').textContent = '';
+
+  const pay = r === 0 ? P / n : P * r / (1 - Math.pow(1 + r, -n));
+  $('monthly').textContent = fmt(pay);
+  $('total').textContent = fmt(pay * n);
+  $('interest').textContent = fmt(pay * n - P);
+
+  let bal = P;
+  const frag = document.createDocumentFragment();
+  for (let m = 1; m <= n; m++) {
+    const int = bal * r;
+    const prin = Math.min(pay - int, bal);
+    bal = Math.max(bal - prin, 0);
+    const tr = document.createElement('tr');
+    [m, fmt(pay), fmt(prin), fmt(int), fmt(bal)].forEach(v => {
+      const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  }
+  rows.appendChild(frag);
+}
+['amount','rate','years'].forEach(id => $(id).addEventListener('input', calc));
+calc();
+</script>
+</body>
+</html>
